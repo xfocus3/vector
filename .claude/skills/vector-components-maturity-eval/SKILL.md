@@ -1,6 +1,6 @@
 ---
 name: vector-components-maturity-eval
-description: Evaluates all Vector component maturity levels and writes a monthly markdown report to reports/maturity-YYYY-MM.md. Use when asked to evaluate component maturity or generate the monthly maturity report.
+description: Evaluates all Vector component maturity levels and writes a monthly markdown report to .claude/skill-reports/maturity-YYYY-MM.md. Use when asked to evaluate component maturity or generate the monthly maturity report.
 ---
 
 You are the Vector Component Maturity Evaluator. Work through the phases below to collect signals for all components, evaluate them, and write the report.
@@ -164,9 +164,11 @@ Read each component's CUE file in batches of 10–15 (parallel Read calls in a s
 
 ## Phase 4: Match Bugs to Components
 
-Scan each GitHub issue title from Phase 2a for component names (e.g. `kafka`, `elasticsearch`, `fluent`, `file`, `loki`, etc.). Use the canonical component names from the CUE filenames as the reference list.
+Scan each GitHub issue title from Phase 2a for component names. Use the canonical component names from the CUE filenames as the reference list.
 
-Count matched open bugs per component. If an issue mentions multiple components, count it for each. Skip issues with no clear component match.
+**Avoid false matches on generic terms.** Names like `file`, `http`, `socket`, `vector`, `console`, and `internal` appear in many issue titles without referring to a specific component. Only count a match when the issue title unambiguously refers to the component (e.g. `"kafka source: ..."`, `"[loki sink]"`, or the component name appears as a standalone token next to "source", "sink", or "transform").
+
+Count matched open bugs per component. If an issue mentions multiple components, count it for each. If a title is ambiguous — it contains a generic term that could match several components — do not count it for any component; instead collect these in an "Unmatched / ambiguous" list and include it in the report's Reference section for manual review.
 
 ---
 
@@ -215,6 +217,7 @@ _Generated: YYYY-MM-DD. N sources · N transforms · N sinks (N total)._
 | Category | Count |
 |----------|-------|
 | Promote candidates (beta → stable) | N |
+| Near misses (one criterion short) | N |
 | Watch list (stable with concerns) | N |
 | Deprecation candidates | N |
 | No change | N |
@@ -223,11 +226,20 @@ _Generated: YYYY-MM-DD. N sources · N transforms · N sinks (N total)._
 
 ## Promotion Candidates
 
-_Beta components that meet or nearly meet the stable criteria._
+_Beta components that strictly meet all stable criteria: 0–1 open bugs, integration or >10 unit tests, age > 4 months, churn ≤ 5 commits, docs at least `partial`._
 
 | Component | Type | Open Bugs | Int Tests | Age | Churn (6mo) | Docs |
 |-----------|------|-----------|-----------|-----|-------------|------|
 | `name` | source | 0 | ✓ | 18mo | 2 | complete |
+
+---
+
+## Near Misses
+
+_Beta components that fail exactly one promotion criterion. List the blocking criterion._
+
+| Component | Type | Open Bugs | Int Tests | Age | Churn (6mo) | Docs | Blocking |
+|-----------|------|-----------|-----------|-----|-------------|------|----------|
 
 ---
 
@@ -271,25 +283,9 @@ Notes column: five words max. Keep prose minimal. Tables over paragraphs. All is
 
 ---
 
-## Phase 7: Publish to Confluence
+## Phase 7: Done
 
-After writing the report, publish it as a child page under the Vector (COSE) Confluence page using the `mcp__atlassian__createConfluencePage` tool:
-
-- **cloudId**: `datadoghq.atlassian.net`
-- **spaceId**: `4174643710`
-- **parentId**: `4189159652` (Vector COSE page)
-- **title**: `Vector Component Maturity — YYYY-MM`
-- **contentFormat**: `html`
-
-Convert the markdown report to HTML before publishing. Key conversions:
-
-- Tables → `<table><thead>/<tbody><tr><th>/<td>` with `data-layout="default"`
-- Info/note panels → `<div data-type="panel-info"><p>...</p></div>`
-- `<details><summary>` expand blocks → use Confluence expand macro syntax
-- Bold → `<strong>`, code → `<code>`, italic → `<em>`
-- `>` blockquotes → info panels
-
-If a page for the current month already exists (from a prior run), use `mcp__atlassian__updateConfluencePage` instead of creating a new one.
+The report is complete. Tell the user where the file was written. Do not publish anywhere — distribution is a separate decision made by the user after reviewing the report.
 
 ---
 
