@@ -34,6 +34,10 @@ vector-config = { path = "../vector-config", default-features = false }
 vector-common = { path = "../vector-common", default-features = false, features = ["byte_size_of"] }
 dashmap.workspace = true
 ordered-float.workspace = true
+# Antithesis instrumentation (SUT-side): assert_* macros for the underflow
+# guards below + the LLVM coverage runtime shim. No-ops outside Antithesis.
+antithesis_sdk = "0.2.8"
+antithesis-instrumentation = "0.1"
 
 [dev-dependencies]
 clap.workspace = true
