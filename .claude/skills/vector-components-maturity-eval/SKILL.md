@@ -10,6 +10,7 @@ You are the Vector Component Maturity Evaluator. Work through the phases below t
 From `website/content/en/docs/architecture/guarantees.md`:
 
 **Stable** requires ALL of:
+
 - >50 production users for a sustained period without issue (proxy: `commonly_used: true` + age)
 - >4 months community testing (proxy: file age in git)
 - API stable and unlikely to change (proxy: low config churn)
@@ -82,17 +83,55 @@ done
 ### 2d. Unit test count
 
 ```bash
+test_attr_regex='#\[(tokio::test|test|rstest|test_case)(\(|\])'
+
 for kind in sources transforms sinks; do
   for f in website/cue/reference/components/${kind}/*.cue; do
     name=$(basename "$f" .cue)
-    src_file="src/${kind}/${name}.rs"
-    src_dir="src/${kind}/${name}"
-    if [ -f "$src_file" ]; then
-      count=$(grep -c "#\[test\]" "$src_file" 2>/dev/null || echo 0)
-    elif [ -d "$src_dir" ]; then
-      count=$(grep -rc "#\[test\]" "$src_dir" 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
-    else
+    paths=()
+
+    add_path() {
+      [ -e "$1" ] && paths+=("$1")
+    }
+
+    add_path "src/${kind}/${name}.rs"
+    add_path "src/${kind}/${name}"
+
+    # Some sink implementations live under shared provider directories.
+    case "${kind}/${name}" in
+      sinks/aws_kinesis_firehose) add_path "src/sinks/aws_kinesis/firehose" ;;
+      sinks/aws_kinesis_streams) add_path "src/sinks/aws_kinesis/streams" ;;
+      sinks/aws_sns) add_path "src/sinks/aws_s_s/sns" ;;
+      sinks/aws_sqs) add_path "src/sinks/aws_s_s/sqs" ;;
+      sinks/datadog_events) add_path "src/sinks/datadog/events" ;;
+      sinks/datadog_logs) add_path "src/sinks/datadog/logs" ;;
+      sinks/datadog_metrics) add_path "src/sinks/datadog/metrics" ;;
+      sinks/datadog_traces) add_path "src/sinks/datadog/traces" ;;
+      sinks/gcp_chronicle_unstructured) add_path "src/sinks/gcp_chronicle" ;;
+      sinks/gcp_cloud_storage) add_path "src/sinks/gcp/cloud_storage.rs" ;;
+      sinks/gcp_pubsub) add_path "src/sinks/gcp/pubsub.rs" ;;
+      sinks/gcp_stackdriver_logs) add_path "src/sinks/gcp/stackdriver/logs" ;;
+      sinks/gcp_stackdriver_metrics) add_path "src/sinks/gcp/stackdriver/metrics" ;;
+      sinks/greptimedb_logs) add_path "src/sinks/greptimedb/logs" ;;
+      sinks/greptimedb_metrics) add_path "src/sinks/greptimedb/metrics" ;;
+      sinks/humio_logs) add_path "src/sinks/humio/logs.rs" ;;
+      sinks/humio_metrics) add_path "src/sinks/humio/metrics.rs" ;;
+      sinks/influxdb_logs) add_path "src/sinks/influxdb/logs.rs" ;;
+      sinks/influxdb_metrics) add_path "src/sinks/influxdb/metrics.rs" ;;
+      sinks/prometheus_exporter) add_path "src/sinks/prometheus/exporter.rs" ;;
+      sinks/prometheus_remote_write) add_path "src/sinks/prometheus/remote_write" ;;
+      sinks/sematext_logs) add_path "src/sinks/sematext/logs.rs" ;;
+      sinks/sematext_metrics) add_path "src/sinks/sematext/metrics.rs" ;;
+      sinks/splunk_hec_logs) add_path "src/sinks/splunk_hec/logs" ;;
+      sinks/splunk_hec_metrics) add_path "src/sinks/splunk_hec/metrics" ;;
+    esac
+
+    if [ ${#paths[@]} -eq 0 ]; then
       count=0
+    elif command -v rg >/dev/null 2>&1; then
+      count=$(rg -n "$test_attr_regex" "${paths[@]}" 2>/dev/null | wc -l | tr -d ' ')
+    else
+      count=$(grep -ER "$test_attr_regex" "${paths[@]}" 2>/dev/null | wc -l | tr -d ' ')
     fi
     echo "${kind}/${name}|${count}"
   done
@@ -111,11 +150,12 @@ Read each component's CUE file in batches of 10–15 (parallel Read calls in a s
 
 - `development` value — `"stable"`, `"beta"`, or `"deprecated"`
 - `commonly_used` — `true` or `false`
-- Whether `how_it_works` has substantive prose (not just a reference to a shared `_base` block)
+- Whether `how_it_works` has substantive prose. If it references a shared CUE object, read that referenced object and judge the resolved prose; shared populated docs count as substantive.
 - Whether `description` (top-level) is meaningful: at least two sentences explaining what the component does and when to use it
 - Whether there are non-trivial `examples` in the configuration section
 
 **Docs quality judgment**: mark docs as `complete`, `partial`, or `minimal`.
+
 - `complete`: all three present (description, how_it_works prose, examples)
 - `partial`: one or two present
 - `minimal`: none meaningful or all are placeholders/references
@@ -135,7 +175,7 @@ Count matched open bugs per component. If an issue mentions multiple components,
 For every component, assign one recommendation:
 
 | Rec | Meaning |
-|-----|---------|
+| --- | --- |
 | **promote** | Beta → stable candidate |
 | **keep** | No change warranted |
 | **watch** | Stable with concerning signals |
@@ -242,6 +282,7 @@ After writing the report, publish it as a child page under the Vector (COSE) Con
 - **contentFormat**: `html`
 
 Convert the markdown report to HTML before publishing. Key conversions:
+
 - Tables → `<table><thead>/<tbody><tr><th>/<td>` with `data-layout="default"`
 - Info/note panels → `<div data-type="panel-info"><p>...</p></div>`
 - `<details><summary>` expand blocks → use Confluence expand macro syntax
