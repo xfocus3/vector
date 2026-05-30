@@ -97,8 +97,13 @@ for kind in sources transforms sinks; do
     add_path "src/${kind}/${name}.rs"
     add_path "src/${kind}/${name}"
 
-    # Some sink implementations live under shared provider directories.
+    # Some source/sink implementations live under shared provider directories.
     case "${kind}/${name}" in
+      sources/file_descriptor) add_path "src/sources/file_descriptors/file_descriptor.rs" ;;
+      sources/stdin) add_path "src/sources/file_descriptors/stdin.rs" ;;
+      sources/prometheus_scrape) add_path "src/sources/prometheus/scrape.rs" ;;
+      sources/prometheus_remote_write) add_path "src/sources/prometheus/remote_write.rs" ;;
+      sources/prometheus_pushgateway) add_path "src/sources/prometheus/pushgateway.rs" ;;
       sinks/aws_kinesis_firehose) add_path "src/sinks/aws_kinesis/firehose" ;;
       sinks/aws_kinesis_streams) add_path "src/sinks/aws_kinesis/streams" ;;
       sinks/aws_sns) add_path "src/sinks/aws_s_s/sns" ;;
