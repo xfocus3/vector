@@ -21,7 +21,7 @@ From `website/content/en/docs/architecture/guarantees.md`:
 
 ## Signal Priority
 
-1. **Open bugs** (highest weight) — open GitHub issues labeled `type: bug` mentioning this component
+1. **Open bugs** (highest weight) — open GitHub issues with issue type `Bug` mentioning this component
 2. **Test coverage** (second) — integration test exists? unit test count?
 3. Equal weight: age, config churn (6 months), `commonly_used`, docs quality (AI judgment)
 
@@ -48,10 +48,10 @@ Use single shell loops to collect all signals at once — do not make one Bash c
 
 ### 2a. Open GitHub bugs
 
-The bug label in vectordotdev/vector is `type: bug` (not `bug`).
+Issues use the GitHub issue **Type** field (not a label). The type name is `Bug`.
 
 ```bash
-gh issue list --label "type: bug" --state open --json number,title,url --limit 500 2>/dev/null
+gh issue list --state open --search "type:Bug" --json number,title,url --limit 500 2>/dev/null
 ```
 
 Store the full list. You will map bugs to components in Phase 4 by scanning titles for component names.
@@ -294,7 +294,7 @@ The report is complete. Tell the user where the file was written. Do not publish
 - CUE files at `website/cue/reference/components/{sources,transforms,sinks}/` are authoritative (ignore `generated/` subdirs)
 - Source implementations: `src/sources/<name>.rs` or `src/sources/<name>/`, same pattern for sinks and transforms
 - `gh` is pre-authenticated for `vectordotdev/vector`
-- Bug label is `type: bug` (not `bug`) in the vectordotdev/vector repo
+- Bugs are identified by the GitHub issue **Type** field (`type:Bug` in search), not by label — the old `type: bug` label is deprecated
 - Working directory is the Vector repo root
 
 **Parent/shared CUE files**: Some CUE files define shared configuration for families of components and have no `development` field of their own (children inherit it). These will appear as "unknown" status when grepped. Known parent files: `sinks/aws_cloudwatch.cue`, `sinks/datadog.cue`, `sinks/gcp.cue`, `sinks/humio.cue`, `sinks/influxdb.cue`, `sinks/sematext.cue`, `sinks/splunk_hec.cue`, and possibly `sinks/statsd.cue`, `sources/syslog.cue`. Exclude these from per-component counts; note them separately.
