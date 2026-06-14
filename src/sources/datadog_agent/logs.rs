@@ -40,6 +40,7 @@ pub(super) fn build_warp_filter(
                   api_token: Option<String>,
                   query_params: ApiKeyQueryParams,
                   body: Bytes| {
+                // Validate API key FIRST (per maintainer feedback: validate before body processing)
                 let events = source
                     .validate_api_key(path.as_str(), api_token, query_params.dd_api_key)
                     .and_then(|api_key| {
