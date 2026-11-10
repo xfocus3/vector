@@ -46,7 +46,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: vectordotdev/vector
-          ref: 9aa2f07faaecb5f4bfb6e9ea26aa7aae313af013
+          ref: edfcf9000c05eb4636b0b3d406c487c5c14decc1
           persist-credentials: false
           fetch-depth: 1
       - name: Assemble and record candidate merge locally

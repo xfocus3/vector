@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 PR = "8179339d1e1a78715bc4d642d96d990cbc28ba39"
-BASE = "9aa2f07faaecb5f4bfb6e9ea26aa7aae313af013"
+BASE = "edfcf9000c05eb4636b0b3d406c487c5c14decc1"
 REMOTE = "https://github.com/vectordotdev/vector.git"
 INPUT = Path(os.environ["RUNNER_TEMP"]) / "vector25536-input"
 RESULTS = Path(os.environ["RUNNER_TEMP"]) / "vector25536-results"
