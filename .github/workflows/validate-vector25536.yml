@@ -1,0 +1,91 @@
+name: Validate Vector 25536 candidate
+on:
+  push:
+    branches: [sandcastle/vector25536-review-20261109]
+    paths:
+      - patches/vector25536-conflict-resolution.json
+      - validation-support/**
+      - .github/workflows/validate-vector25536.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: vector25536-validation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.repository == 'xfocus3/vector' && github.ref == 'refs/heads/sandcastle/vector25536-review-20261109'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        check: [format-examples, tests, clippy]
+    env:
+      CARGO_BUILD_JOBS: '1'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      CARGO_TERM_COLOR: never
+      # Preserve strict repository lint policy while choosing a memory-efficient linker.
+      RUSTFLAGS: '-D warnings -Dclippy::print_stdout -Dclippy::print_stderr -Dclippy::dbg_macro -C link-arg=-fuse-ld=lld'
+      CI: 'true'
+      CHECK: ${{ matrix.check }}
+    steps:
+      - name: Check out validation inputs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, pinned upstream
+        with:
+          persist-credentials: false
+      - name: Save immutable run inputs
+        run: |
+          mkdir -p "$RUNNER_TEMP/vector25536-input" "$RUNNER_TEMP/vector25536-results"
+          cp patches/vector25536-conflict-resolution.json validation-support/validate-vector25536.py validation-support/run-vector25536.sh "$RUNNER_TEMP/vector25536-input/"
+          cp .github/workflows/validate-vector25536.yml "$RUNNER_TEMP/vector25536-input/"
+      - name: Check out exact upstream base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: vectordotdev/vector
+          ref: 9aa2f07faaecb5f4bfb6e9ea26aa7aae313af013
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Assemble and record candidate merge locally
+        run: python3 "$RUNNER_TEMP/vector25536-input/validate-vector25536.py" assemble
+      - name: Prepare pinned upstream tools
+        uses: ./.github/actions/setup
+        with:
+          rust: true
+          vdev: false
+          mold: false
+          protoc: true
+          libsasl2: true
+          cue: true
+          prettier: true
+          actionlint: true
+          cargo-cache: false
+      - name: Ensure components and low-memory linker
+        run: |
+          rustup component add rustfmt clippy
+          if ! command -v ld.lld >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends -y lld
+          fi
+          command -v ld.lld
+          echo "$PWD/scripts/environment/npm-tools/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Build vdev from the pinned source
+        run: |
+          cargo build --locked --package vdev --no-default-features
+          echo "VDEV=$PWD/target/debug/vdev" >> "$GITHUB_ENV"
+      - name: Run focused validation
+        run: bash "$RUNNER_TEMP/vector25536-input/run-vector25536.sh"
+      - name: Collect proposed fixes even after check failure
+        if: always()
+        run: python3 "$RUNNER_TEMP/vector25536-input/validate-vector25536.py" collect
+      - name: Upload reviewable fixes and exact results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2, pinned upstream
+        with:
+          name: vector25536-${{ matrix.check }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/vector25536-results/
+          retention-days: 7
+          if-no-files-found: error
