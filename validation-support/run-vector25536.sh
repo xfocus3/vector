@@ -43,7 +43,39 @@ case "$CHECK" in
     printf 'make check-fmt exit status: %s\n' "$check_fmt_status" >> "$results/format-status.txt"
     [[ "$check_fmt_status" -eq 0 ]] || failed=1
     [[ ! -s "$results/formatting.patch" ]] || failed=1
-    # Use the official generator directly: the Make wrapper would build all default features.
+    # Match website/Makefile's generate-vrl-docs prerequisite without its tool reinstall.
+    # vdev reads VRL's exact Cargo.lock revision and the candidate's local docs/generated.
+    # No --vector-sha: the local validation merge is intentionally unpublished upstream.
+    prerequisite_dir="$input/vrl-docs"
+    mkdir -p "$prerequisite_dir"
+    "$VDEV" build vrl-docs --output-dir "$prerequisite_dir"
+    # Verify the exact functions behind the CUE failure were actually supplied.
+    python3 -c 'import json,sys; f=json.load(open(sys.argv[1]))["remap"]["functions"]; assert "exists" in f and "is_nullish" in f' "$prerequisite_dir/generated.cue"
+    generated_functions=website/cue/reference/remap/functions/generated.cue
+    # This disposable build input must never replace a tracked candidate file.
+    test -z "$(git ls-files -- "$generated_functions")"
+    git check-ignore -q "$generated_functions"
+    test ! -L "$generated_functions"
+    had_generated_functions=0
+    if [[ -e "$generated_functions" ]]; then
+      cp "$generated_functions" "$prerequisite_dir/original.cue"
+      had_generated_functions=1
+    fi
+    restore_generated_functions() {
+      if [[ "$had_generated_functions" -eq 1 ]]; then
+        cp "$prerequisite_dir/original.cue" "$generated_functions"
+      else
+        rm -f "$generated_functions"
+      fi
+    }
+    trap restore_generated_functions EXIT
+    before_prerequisite=$(git diff --binary HEAD | sha256sum | cut -d ' ' -f 1)
+    mkdir -p "$(dirname "$generated_functions")"
+    cp "$prerequisite_dir/generated.cue" "$generated_functions"
+    after_prerequisite=$(git diff --binary HEAD | sha256sum | cut -d ' ' -f 1)
+    test "$before_prerequisite" = "$after_prerequisite"
+    sha256sum < "$prerequisite_dir/generated.cue" | cut -d ' ' -f 1 > "$results/vrl-docs-input.sha256"
+    # Use the official example generator with the prerequisite present for both passes.
     # Keep independent statuses so the second run still happens after any first-run failure.
     for pass in first second; do
       generation_status=0
